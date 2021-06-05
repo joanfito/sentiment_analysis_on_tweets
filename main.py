@@ -25,7 +25,8 @@ import matplotlib.pyplot as plt
 import pickle
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelBinarizer
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import load_model
 
 # Constants
@@ -206,11 +207,16 @@ def train_model(tweets_df):
     # Split the train subsets into train and validation subsets
     X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size = 0.25, train_size = 0.75, random_state = 0)
 
-    # Transform the label represented as a string to a one-hot encoding array
-    lb = LabelBinarizer()
+    # Transform the label represented as a string to an integer
+    lb = LabelEncoder()
     Y_train = lb.fit_transform(Y_train)
     Y_val = lb.transform(Y_val)
     Y_test = lb.transform(Y_test)
+
+    # Transform the label to a one-hot encoding array
+    Y_train = to_categorical(Y_train)
+    Y_val = to_categorical(Y_val)
+    Y_test = to_categorical(Y_test)
 
     # Create the model
     model = Sequential()
@@ -220,11 +226,11 @@ def train_model(tweets_df):
     model.add(Dropout(0.7))
     model.add(Dropout(0.3))
     model.add(Dense(20, activation = "relu"))
-    model.add(Dense(len(lb.classes_),activation='softmax'))
+    model.add(Dense(len(lb.classes_),activation = "sigmoid"))
     print(model.summary())
 
     opt = Adam(learning_rate = INIT_LR)
-    model.compile(loss = "categorical_crossentropy", optimizer = opt, metrics = ["accuracy"])
+    model.compile(loss = "binary_crossentropy", optimizer = opt, metrics = ["accuracy"])
 
     # Train the neural network
     history = model.fit(x = X_train, y = Y_train, validation_data = (X_val, Y_val), epochs = NUM_EPOCHS, batch_size = BATCH_SIZE)
@@ -240,7 +246,7 @@ def train_model(tweets_df):
 def predict_tweet():
     # TODO
     print("-")
-    
+
 def get_tweets(keyword, consumer_key, consumer_secret):
     """Get tweets from a given topic.
 
@@ -307,6 +313,7 @@ def main():
 
         tweets_df = pd.read_csv(options.train_path)
         tweets_df["text"] = tweets_df["text"].astype(str)
+        tweets_df = tweets_df.loc[tweets_df["class"] != "neutral"]
         train_model(tweets_df)
     else:
         tweets_df = pd.read_csv("./data/tweets.csv")
