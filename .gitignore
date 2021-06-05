@@ -1,0 +1,12 @@
+# MAC
+.DS_Store
+._*
+
+# CSV
+data/
+
+# Credentials
+consumer.json
+
+# Folders
+__pycache__
