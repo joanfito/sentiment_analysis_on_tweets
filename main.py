@@ -149,7 +149,7 @@ def preprocess_tweets(tweets_df):
     # Remove stepwords
     tweets_df["text"] = tweets_df["text"].apply(lambda text: clean_stopwords(text))
 
-def _create_plot(history, path):
+def create_plot(history, path):
     """Create and save the loss/accuracy plot.
 
     Args:
@@ -174,7 +174,7 @@ def _create_plot(history, path):
     plt.legend()
     plt.savefig(path)
 
-def _save_nn(model, lb, model_path, labels_path):
+def save_nn(model, lb, model_path, labels_path):
     """Save the model and the labels.
 
     Args:
@@ -239,13 +239,63 @@ def train_model(tweets_df):
     Y_pred = model.predict(X_test, batch_size = BATCH_SIZE)
     print(classification_report(Y_test.argmax(axis = 1), Y_pred.argmax(axis = 1), target_names = lb.classes_))
 
-    _create_plot(history, "plot.png")
-    _save_nn(model, lb, "model.h5", "model_lb.pickle")
+    create_plot(history, "plot.png")
+    save_nn(model, lb, "model.h5", "model_lb.pickle")
 
+def load_nn(model_path, labels_path):
+    """Load the neural network model and the label binarizer.
 
-def predict_tweet():
-    # TODO
-    print("-")
+    Args:
+        model_path: path to the neural network model.
+        labels_path: path to the label binarizer.
+
+    Returns:
+        a tuple with the model and the label binarizer of the neural network.
+
+    """
+    model = load_model(model_path)
+    lb = pickle.loads(open(labels_path, "rb").read())
+
+    return (model, lb)
+
+def predict(model, lb, tweets_df):
+    """Predict the class of the tweets.
+
+    Args:
+        model: neural network model.
+        lb: label binarizer.
+        tweets_df: data frame with the tweets to classify.
+
+    """
+    tokenizer = Tokenizer(num_words = 5000)
+
+    # Predict each tweet class
+    for i in range(tweets_df.shape[0]):
+        tokenizer.fit_on_texts(tweets_df.iloc[i]["text"])
+        sequences = tokenizer.texts_to_sequences(tweets_df.iloc[i]["text"])
+        data = pad_sequences(sequences, maxlen = 200)
+
+        # Predict the class
+        pred = model.predict(data)
+
+        # Find the class with the highest probability
+        Y_pred = pred.argmax(axis = 1)[0]
+        tweets_df.loc[i, "class"] = lb.classes_[Y_pred]
+        #print("{}\n [{} with {:.2f}%]\n".format(tweets_df.iloc[i]["text"], lb.classes_[Y_pred], pred[0][Y_pred] * 100))
+
+def predict_tweets(tweets_df):
+    """Load the model and predict the tweet's sentiments.
+
+    Args:
+        tweets_df: data frame with the tweets to classify.
+
+    """
+    model, lb = load_nn("model.h5", "model_lb.pickle")
+    predict(model, lb, tweets_df)
+
+    # Save the tweets with their class to a CSV
+    tweets_df.to_csv("./data/predicted_tweets.csv", index = False)
+
 
 def get_tweets(keyword, consumer_key, consumer_secret):
     """Get tweets from a given topic.
@@ -318,7 +368,7 @@ def main():
     else:
         tweets_df = pd.read_csv("./data/tweets.csv")
         preprocess_tweets(tweets_df)
-        predict_tweet()
+        predict_tweets(tweets_df)
 
 if __name__ == "__main__":
     main()
