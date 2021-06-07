@@ -18,7 +18,11 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding
 from tensorflow.keras.layers import InputLayer
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import SimpleRNN
 from tensorflow.keras.layers import LSTM
+from tensorflow.keras.layers import Conv1D
+from tensorflow.keras.layers import MaxPool1D
+from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
@@ -275,13 +279,14 @@ def predict(model, lb, tweets_df):
         sequences = tokenizer.texts_to_sequences(tweets_df.iloc[i]["text"])
         data = pad_sequences(sequences, maxlen = 200)
 
-        # Predict the class
-        pred = model.predict(data)
+        if data.size != 0:
+            # Predict the class
+            pred = model.predict(data)
 
-        # Find the class with the highest probability
-        Y_pred = pred.argmax(axis = 1)[0]
-        tweets_df.loc[i, "class"] = lb.classes_[Y_pred]
-        #print("{}\n [{} with {:.2f}%]\n".format(tweets_df.iloc[i]["text"], lb.classes_[Y_pred], pred[0][Y_pred] * 100))
+            # Find the class with the highest probability
+            Y_pred = pred.argmax(axis = 1)[0]
+            tweets_df.loc[i, "class"] = lb.classes_[Y_pred]
+            #print("[{}]{}\n [{} with {:.2f}%]\n".format(i, tweets_df.iloc[i]["text"], lb.classes_[Y_pred], pred[0][Y_pred] * 100))
 
 def predict_tweets(tweets_df):
     """Load the model and predict the tweet's sentiments.
@@ -314,8 +319,9 @@ def get_tweets(keyword, consumer_key, consumer_secret):
     search_query = keyword + " -filter:retweets"
     tweets = tweepy.Cursor(api.search, q = search_query, lang = "en", tweet_mode = "extended")
 
-    tweets_data = [[tweet.user.id, tweet.user.screen_name, tweet.full_text, tweet.retweet_count, tweet.favorite_count, "neutral"] for tweet in tweets.items(100)]
+    tweets_data = [[tweet.user.id, tweet.user.screen_name, tweet.full_text, tweet.retweet_count, tweet.favorite_count, "neutral"] for tweet in tweets.items(150)]
     tweets_df = pd.DataFrame(data = tweets_data, columns=["user_id", "username", "text", "retweets", "likes", "class"])
+    tweets_df["product"] = keyword
     tweets_df.to_csv("./data/tweets.csv", index = False)
 
 def new_training_data():
